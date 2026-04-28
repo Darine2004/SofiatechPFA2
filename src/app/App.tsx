@@ -9,6 +9,7 @@ import { ReferenceGenerator } from './components/ReferenceGenerator';
 import { AssetDatabase } from './components/AssetDatabase';
 import { useFirebaseSync } from './hooks/useFirebaseSync';
 import { Plus, LogOut, Wifi, WifiOff, Loader2 } from 'lucide-react';
+import { CSVImporter } from './components/CSVImporter';
 import logoImage from '../imports/image.png';
 
 interface Department {
@@ -40,6 +41,7 @@ export default function App() {
 
   const [isAddingAsset, setIsAddingAsset] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [isImportingCSV, setIsImportingCSV] = useState(false);
 
   // ── Référence ───────────────────────────────────────────────────────────
 
@@ -184,6 +186,23 @@ export default function App() {
     }
   }, [assets, saveAssets]);
 
+
+  const handleImportCSV = useCallback((assetsData: Omit<Asset, 'id' | 'reference' | 'status'>[]) => {
+    const categoryCodeMap: Record<string, string> = {
+      'IT Equipment': 'ITE',
+      'Technical Device': 'TDE',
+      'Storage Media': 'STM',
+      'Sensitive Data': 'SDT',
+      'Communication Equipment': 'COM'
+    };
+    const newAssets: Asset[] = assetsData.map(assetData => {
+      const categoryCode = categoryCodeMap[assetData.category] || 'XXX';
+      const reference = generateReference(assetData.departmentId, categoryCode);
+      return { ...assetData, id: crypto.randomUUID(), reference, status: 'Registered' };
+    });
+    saveAssets([...assets, ...newAssets]);
+    setIsImportingCSV(false);
+  }, [assets, generateReference, saveAssets]);
   const handleDeleteAssetFromDatabase = useCallback((id: string) => {
     saveAssets(assets.filter(a => a.id !== id));
   }, [assets, saveAssets]);
@@ -372,17 +391,30 @@ export default function App() {
           </TabsContent>
 
           <TabsContent value="assets" className="space-y-6">
-            {!isAddingAsset && !editingAsset && (
+            {!isAddingAsset && !editingAsset && !isImportingCSV && (
               <div className="flex justify-between items-center">
                 <div>
                   <h2 style={{ color: '#003366' }}>Gestion des Assets</h2>
                   <p className="text-sm mt-1" style={{ color: '#4A90E2' }}>Créer et gérer tous les équipements de l'organisation</p>
                 </div>
-                <Button onClick={() => setIsAddingAsset(true)} style={{ backgroundColor: '#F47B20' }} className="shadow-md hover:opacity-90">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nouvel asset
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={() => setIsImportingCSV(true)} variant="outline" className="shadow-md hover:opacity-90" style={{ borderColor: '#4A90E2', color: '#4A90E2' }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Importer CSV
+                  </Button>
+                  <Button onClick={() => setIsAddingAsset(true)} style={{ backgroundColor: '#F47B20' }} className="shadow-md hover:opacity-90">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nouvel asset
+                  </Button>
+                </div>
               </div>
+            )}
+            {isImportingCSV && (
+              <CSVImporter
+                departments={departments}
+                onImport={handleImportCSV}
+                onClose={() => setIsImportingCSV(false)}
+              />
             )}
             {isAddingAsset && (
               <AssetForm departments={departments} onSubmit={handleAddAsset} onCancel={() => setIsAddingAsset(false)} />
@@ -390,7 +422,7 @@ export default function App() {
             {editingAsset && (
               <AssetForm departments={departments} asset={editingAsset} onSubmit={handleEditAsset} onCancel={() => setEditingAsset(null)} />
             )}
-            {!isAddingAsset && !editingAsset && (
+            {!isAddingAsset && !editingAsset && !isImportingCSV && (
               <AssetList assets={assets} departments={departments} onEdit={setEditingAsset} onDelete={handleDeleteAsset} onExportCSV={handleExportCSV} />
             )}
           </TabsContent>
