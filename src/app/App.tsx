@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Button } from './components/ui/button';
 import { DepartmentManager } from './components/DepartmentManager';
@@ -7,7 +7,8 @@ import { AssetList } from './components/AssetList';
 import { LoginPage } from './components/LoginPage';
 import { ReferenceGenerator } from './components/ReferenceGenerator';
 import { AssetDatabase } from './components/AssetDatabase';
-import { Plus, LogOut } from 'lucide-react';
+import { useFirebaseSync } from './hooks/useFirebaseSync';
+import { Plus, LogOut, Wifi, WifiOff, Loader2 } from 'lucide-react';
 import logoImage from '../imports/image.png';
 
 interface Department {
@@ -17,55 +18,32 @@ interface Department {
 }
 
 export default function App() {
+  // ── Auth (toujours en localStorage, c'est local par design) ────────────
   const [isAuthenticated, setIsAuthenticated] = useState(() => {
     return localStorage.getItem('sofiatech-auth') === 'true';
   });
-
   const [currentUser, setCurrentUser] = useState(() => {
     return localStorage.getItem('sofiatech-user') || '';
   });
 
-  const [departments, setDepartments] = useState<Department[]>(() => {
-    const saved = localStorage.getItem('sofiatech-departments');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    const defaultDepartments: Department[] = [
-      { id: crypto.randomUUID(), name: 'Research & Development', code: 'RD' },
-      { id: crypto.randomUUID(), name: 'Quality (AMQ)', code: 'AMQ' },
-      { id: crypto.randomUUID(), name: 'Hardware', code: 'HW' },
-      { id: crypto.randomUUID(), name: 'Software', code: 'SW' }
-    ];
-    localStorage.setItem('sofiatech-departments', JSON.stringify(defaultDepartments));
-    return defaultDepartments;
-  });
-
-  const [assets, setAssets] = useState<Asset[]>(() => {
-    const saved = localStorage.getItem('sofiatech-assets');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [sequences, setSequences] = useState<Record<string, number>>(() => {
-    const saved = localStorage.getItem('sofiatech-sequences');
-    return saved ? JSON.parse(saved) : {};
-  });
+  // ── Données synchronisées via Firebase ─────────────────────────────────
+  const {
+    assets,
+    departments,
+    sequences,
+    isLoading,
+    isConnected,
+    saveAssets,
+    saveDepartments,
+    saveSequences,
+  } = useFirebaseSync();
 
   const [isAddingAsset, setIsAddingAsset] = useState(false);
   const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
 
-  useEffect(() => {
-    localStorage.setItem('sofiatech-departments', JSON.stringify(departments));
-  }, [departments]);
+  // ── Référence ───────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    localStorage.setItem('sofiatech-assets', JSON.stringify(assets));
-  }, [assets]);
-
-  useEffect(() => {
-    localStorage.setItem('sofiatech-sequences', JSON.stringify(sequences));
-  }, [sequences]);
-
-  const findNextAvailableNumber = (deptCode: string, categoryCode: string): number => {
+  const findNextAvailableNumber = useCallback((deptCode: string, categoryCode: string): number => {
     const prefix = `${deptCode}-${categoryCode}-`;
     const existingNumbers = assets
       .filter(a => a.reference.startsWith(prefix))
@@ -76,20 +54,15 @@ export default function App() {
       .filter(n => !isNaN(n))
       .sort((a, b) => a - b);
 
-    if (existingNumbers.length === 0) {
-      return 1;
-    }
+    if (existingNumbers.length === 0) return 1;
 
     for (let i = 1; i <= existingNumbers.length; i++) {
-      if (!existingNumbers.includes(i)) {
-        return i;
-      }
+      if (!existingNumbers.includes(i)) return i;
     }
-
     return existingNumbers[existingNumbers.length - 1] + 1;
-  };
+  }, [assets]);
 
-  const generateReference = (departmentId: string, categoryCode?: string): string => {
+  const generateReference = useCallback((departmentId: string, categoryCode?: string): string => {
     const dept = departments.find(d => d.id === departmentId);
     if (!dept) return '';
 
@@ -101,11 +74,14 @@ export default function App() {
     const key = dept.code;
     const currentSeq = sequences[key] || 0;
     const nextSeq = currentSeq + 1;
-    setSequences(prev => ({ ...prev, [key]: nextSeq }));
+    const newSeqs = { ...sequences, [key]: nextSeq };
+    saveSequences(newSeqs);
     return `${dept.code}-${String(nextSeq).padStart(4, '0')}`;
-  };
+  }, [departments, sequences, findNextAvailableNumber, saveSequences]);
 
-  const handleGenerateReference = (deptCode: string, categoryCode: string) => {
+  // ── Générateur de référence ─────────────────────────────────────────────
+
+  const handleGenerateReference = useCallback((deptCode: string, categoryCode: string) => {
     const dept = departments.find(d => d.code === deptCode);
     if (!dept) {
       alert('Département non trouvé');
@@ -143,31 +119,33 @@ export default function App() {
       priority: 'D - Restricted'
     };
 
-    setAssets([...assets, newAsset]);
+    const updatedAssets = [...assets, newAsset];
+    saveAssets(updatedAssets);
     alert(`Référence créée avec succès : ${reference}`);
-  };
+  }, [departments, assets, generateReference, saveAssets]);
 
-  const handleAddDepartment = (dept: Omit<Department, 'id'>) => {
-    const newDept: Department = {
-      ...dept,
-      id: crypto.randomUUID(),
-    };
-    setDepartments([...departments, newDept]);
-  };
+  // ── Départements ────────────────────────────────────────────────────────
 
-  const handleEditDepartment = (id: string, dept: Omit<Department, 'id'>) => {
-    setDepartments(departments.map(d => d.id === id ? { ...d, ...dept } : d));
-  };
+  const handleAddDepartment = useCallback((dept: Omit<Department, 'id'>) => {
+    const newDept: Department = { ...dept, id: crypto.randomUUID() };
+    saveDepartments([...departments, newDept]);
+  }, [departments, saveDepartments]);
 
-  const handleDeleteDepartment = (id: string) => {
+  const handleEditDepartment = useCallback((id: string, dept: Omit<Department, 'id'>) => {
+    saveDepartments(departments.map(d => d.id === id ? { ...d, ...dept } : d));
+  }, [departments, saveDepartments]);
+
+  const handleDeleteDepartment = useCallback((id: string) => {
     if (assets.some(a => a.departmentId === id)) {
       alert('Impossible de supprimer un département contenant des assets');
       return;
     }
-    setDepartments(departments.filter(d => d.id !== id));
-  };
+    saveDepartments(departments.filter(d => d.id !== id));
+  }, [assets, departments, saveDepartments]);
 
-  const handleAddAsset = (assetData: Omit<Asset, 'id' | 'reference' | 'status'> & { status?: string }) => {
+  // ── Assets ──────────────────────────────────────────────────────────────
+
+  const handleAddAsset = useCallback((assetData: Omit<Asset, 'id' | 'reference' | 'status'> & { status?: string }) => {
     const categoryCodeMap: Record<string, string> = {
       'IT Equipment': 'ITE',
       'Technical Device': 'TDE',
@@ -175,10 +153,8 @@ export default function App() {
       'Sensitive Data': 'SDT',
       'Communication Equipment': 'COM'
     };
-
     const categoryCode = categoryCodeMap[assetData.category] || 'XXX';
     const reference = generateReference(assetData.departmentId, categoryCode);
-
     const newAsset: Asset = {
       ...assetData,
       id: crypto.randomUUID(),
@@ -186,25 +162,33 @@ export default function App() {
       status: 'Registered',
       priority: assetData.priority || '',
     };
-    setAssets([...assets, newAsset]);
+    const updatedAssets = [...assets, newAsset];
+    saveAssets(updatedAssets);
     setIsAddingAsset(false);
-  };
+  }, [assets, generateReference, saveAssets]);
 
-  const handleEditAsset = (assetData: Omit<Asset, 'id' | 'reference' | 'status'> & { reference: string; status?: string }) => {
+  const handleEditAsset = useCallback((assetData: Omit<Asset, 'id' | 'reference' | 'status'> & { reference: string; status?: string }) => {
     if (!editingAsset) return;
-    setAssets(assets.map(a => a.id === editingAsset.id ? { ...a, ...assetData, status: 'Registered', priority: assetData.priority || '' } : a));
+    const updatedAssets = assets.map(a =>
+      a.id === editingAsset.id
+        ? { ...a, ...assetData, status: 'Registered', priority: assetData.priority || '' }
+        : a
+    );
+    saveAssets(updatedAssets);
     setEditingAsset(null);
-  };
+  }, [editingAsset, assets, saveAssets]);
 
-  const handleDeleteAsset = (id: string) => {
+  const handleDeleteAsset = useCallback((id: string) => {
     if (confirm('Êtes-vous sûr de vouloir supprimer cet asset ?')) {
-      setAssets(assets.filter(a => a.id !== id));
+      saveAssets(assets.filter(a => a.id !== id));
     }
-  };
+  }, [assets, saveAssets]);
 
-  const handleDeleteAssetFromDatabase = (id: string) => {
-    setAssets(assets.filter(a => a.id !== id));
-  };
+  const handleDeleteAssetFromDatabase = useCallback((id: string) => {
+    saveAssets(assets.filter(a => a.id !== id));
+  }, [assets, saveAssets]);
+
+  // ── Auth ────────────────────────────────────────────────────────────────
 
   const handleLogin = (username: string, password: string) => {
     if (username === 'DarineetNour' && password === 'sofiatech') {
@@ -224,41 +208,25 @@ export default function App() {
     localStorage.removeItem('sofiatech-user');
   };
 
+  // ── Export CSV ──────────────────────────────────────────────────────────
+
   const handleExportDatabaseCSV = () => {
-    if (assets.length === 0) {
-      alert('Aucune référence à exporter');
-      return;
-    }
-
-    const headers = ['Département', 'Catégorie', 'Référence Asset'];
-
+    if (assets.length === 0) { alert('Aucune référence à exporter'); return; }
     const categoryCodeMap: Record<string, string> = {
-      'IT Equipment': 'ITE',
-      'Technical Device': 'TDE',
-      'Storage Media': 'STM',
-      'Sensitive Data': 'SDT',
-      'Communication Equipment': 'COM'
+      'IT Equipment': 'ITE', 'Technical Device': 'TDE',
+      'Storage Media': 'STM', 'Sensitive Data': 'SDT', 'Communication Equipment': 'COM'
     };
-
+    const headers = ['Département', 'Catégorie', 'Référence Asset'];
     const escapeCSVField = (field: string) => {
       const str = String(field || '');
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
+      return (str.includes(',') || str.includes('"') || str.includes('\n'))
+        ? `"${str.replace(/"/g, '""')}"` : str;
     };
-
     const rows = assets.map(asset => {
       const dept = departments.find(d => d.id === asset.departmentId);
       const categoryCode = categoryCodeMap[asset.category] || asset.category.substring(0, 3).toUpperCase();
-
-      return [
-        dept?.code || '',
-        categoryCode,
-        asset.reference
-      ].map(escapeCSVField);
+      return [dept?.code || '', categoryCode, asset.reference].map(escapeCSVField);
     });
-
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -270,67 +238,28 @@ export default function App() {
   };
 
   const handleExportCSV = (departmentId?: string, selectedIds?: string[]) => {
-    let assetsToExport = departmentId
-      ? assets.filter(a => a.departmentId === departmentId)
-      : assets;
-
+    let assetsToExport = departmentId ? assets.filter(a => a.departmentId === departmentId) : assets;
     if (selectedIds && selectedIds.length > 0) {
       assetsToExport = assetsToExport.filter(a => selectedIds.includes(a.id));
     }
-
-    if (assetsToExport.length === 0) {
-      alert('Aucun asset à exporter');
-      return;
-    }
-
+    if (assetsToExport.length === 0) { alert('Aucun asset à exporter'); return; }
     const headers = [
-      'Subject',
-      'Asset Description',
-      'Status',
-      'Priority',
-      'Asset Reference',
-      'Asset Category',
-      'Property',
-      'Asset Location',
-      'Asset Responsible',
-      'Asset Owner',
-      'Assigned To',
-      'Asset Actual Status',
-      'Asset Return Condition',
-      'Acquisition Date',
-      'Calibration Status',
-      'Calibration Validity Deadline'
+      'Subject', 'Asset Description', 'Status', 'Priority', 'Asset Reference',
+      'Asset Category', 'Property', 'Asset Location', 'Asset Responsible', 'Asset Owner',
+      'Assigned To', 'Asset Actual Status', 'Asset Return Condition',
+      'Acquisition Date', 'Calibration Status', 'Calibration Validity Deadline'
     ];
-
     const escapeCSVField = (field: string) => {
       const str = String(field || '');
-      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
+      return (str.includes(',') || str.includes('"') || str.includes('\n'))
+        ? `"${str.replace(/"/g, '""')}"` : str;
     };
-
-    const rows = assetsToExport.map(asset => {
-      return [
-        asset.subject,
-        asset.description,
-        asset.status,
-        asset.priority,
-        asset.reference,
-        asset.category,
-        asset.property,
-        asset.location,
-        asset.responsible,
-        asset.owner,
-        asset.assignedTo,
-        asset.actualStatus,
-        asset.returnCondition,
-        asset.acquisitionDate,
-        asset.calibrationStatus,
-        asset.calibrationDeadline
-      ].map(escapeCSVField);
-    });
-
+    const rows = assetsToExport.map(asset => [
+      asset.subject, asset.description, asset.status, asset.priority, asset.reference,
+      asset.category, asset.property, asset.location, asset.responsible, asset.owner,
+      asset.assignedTo, asset.actualStatus, asset.returnCondition,
+      asset.acquisitionDate, asset.calibrationStatus, asset.calibrationDeadline
+    ].map(escapeCSVField));
     const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -341,8 +270,22 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  // ── Render ──────────────────────────────────────────────────────────────
+
   if (!isAuthenticated) {
     return <LoginPage onLogin={handleLogin} />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F5F7FA' }}>
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: '#003366' }} />
+          <p style={{ color: '#003366' }} className="text-lg font-medium">Connexion à Firebase...</p>
+          <p style={{ color: '#4A90E2' }} className="text-sm mt-1">Synchronisation des données en cours</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -360,6 +303,18 @@ export default function App() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              {/* Indicateur de connexion Firebase */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
+                style={{
+                  backgroundColor: isConnected ? 'rgba(39,174,96,0.2)' : 'rgba(231,76,60,0.2)',
+                  color: isConnected ? '#27AE60' : '#E74C3C',
+                  border: `1px solid ${isConnected ? '#27AE60' : '#E74C3C'}`
+                }}>
+                {isConnected
+                  ? <><Wifi className="w-3.5 h-3.5" /> Synchronisé</>
+                  : <><WifiOff className="w-3.5 h-3.5" /> Hors ligne</>
+                }
+              </div>
               <div className="text-right">
                 <p className="text-sm opacity-90">Connecté en tant que</p>
                 <p className="font-medium">{currentUser}</p>
@@ -400,10 +355,7 @@ export default function App() {
               <h2 style={{ color: '#003366' }}>Générateur de Références Assets</h2>
               <p className="text-sm mt-1" style={{ color: '#4A90E2' }}>Créer automatiquement des références pour les nouveaux assets</p>
             </div>
-            <ReferenceGenerator
-              departments={departments}
-              onGenerateReference={handleGenerateReference}
-            />
+            <ReferenceGenerator departments={departments} onGenerateReference={handleGenerateReference} />
           </TabsContent>
 
           <TabsContent value="database">
@@ -432,32 +384,14 @@ export default function App() {
                 </Button>
               </div>
             )}
-
             {isAddingAsset && (
-              <AssetForm
-                departments={departments}
-                onSubmit={handleAddAsset}
-                onCancel={() => setIsAddingAsset(false)}
-              />
+              <AssetForm departments={departments} onSubmit={handleAddAsset} onCancel={() => setIsAddingAsset(false)} />
             )}
-
             {editingAsset && (
-              <AssetForm
-                departments={departments}
-                asset={editingAsset}
-                onSubmit={handleEditAsset}
-                onCancel={() => setEditingAsset(null)}
-              />
+              <AssetForm departments={departments} asset={editingAsset} onSubmit={handleEditAsset} onCancel={() => setEditingAsset(null)} />
             )}
-
             {!isAddingAsset && !editingAsset && (
-              <AssetList
-                assets={assets}
-                departments={departments}
-                onEdit={setEditingAsset}
-                onDelete={handleDeleteAsset}
-                onExportCSV={handleExportCSV}
-              />
+              <AssetList assets={assets} departments={departments} onEdit={setEditingAsset} onDelete={handleDeleteAsset} onExportCSV={handleExportCSV} />
             )}
           </TabsContent>
 
