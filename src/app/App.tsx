@@ -187,22 +187,15 @@ export default function App() {
   }, [assets, saveAssets]);
 
 
-  const handleImportCSV = useCallback((assetsData: Omit<Asset, 'id' | 'reference' | 'status'>[]) => {
-    const categoryCodeMap: Record<string, string> = {
-      'IT Equipment': 'ITE',
-      'Technical Device': 'TDE',
-      'Storage Media': 'STM',
-      'Sensitive Data': 'SDT',
-      'Communication Equipment': 'COM'
-    };
-    const newAssets: Asset[] = assetsData.map(assetData => {
-      const categoryCode = categoryCodeMap[assetData.category] || 'XXX';
-      const reference = generateReference(assetData.departmentId, categoryCode);
-      return { ...assetData, id: crypto.randomUUID(), reference, status: 'Registered' };
-    });
+  const handleImportCSV = useCallback((assetsData: (Omit<Asset, 'id' | 'status'> & { reference: string })[]) => {
+    const newAssets: Asset[] = assetsData.map(assetData => ({
+      ...assetData,
+      id: crypto.randomUUID(),
+      status: 'Registered',
+    }));
     saveAssets([...assets, ...newAssets]);
     setIsImportingCSV(false);
-  }, [assets, generateReference, saveAssets]);
+  }, [assets, saveAssets]);
   const handleDeleteAssetFromDatabase = useCallback((id: string) => {
     saveAssets(assets.filter(a => a.id !== id));
   }, [assets, saveAssets]);

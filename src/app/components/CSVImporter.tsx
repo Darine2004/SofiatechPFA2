@@ -12,7 +12,7 @@ interface Department {
 
 interface CSVImporterProps {
   departments: Department[];
-  onImport: (assets: Omit<Asset, 'id' | 'reference' | 'status'>[]) => void;
+  onImport: (assets: (Omit<Asset, 'id' | 'status'> & { reference: string })[]) => void;
   onClose: () => void;
 }
 
@@ -126,7 +126,9 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
         const priority = get(row, 'Priority');
         const description = get(row, 'Asset Description');
 
+        const referenceFromCSV = get(row, 'Asset Reference');
         if (!subject) errors.push('Subject manquant');
+        if (!referenceFromCSV) errors.push('Référence asset manquante');
         if (!description) errors.push('Description manquante');
         if (!category) errors.push('Catégorie manquante');
         else if (!VALID_CATEGORIES.includes(category))
@@ -140,11 +142,12 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
         if (priority && !VALID_PRIORITIES.includes(priority))
           errors.push(`Priorité invalide: "${priority}"`);
 
-        const data: Partial<Asset> = {
+        const data: Partial<Asset> & { reference: string } = {
           subject,
           description,
           category,
           property,
+          reference: referenceFromCSV,
           location: get(row, 'Asset Location'),
           responsible,
           owner,
@@ -177,7 +180,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
   const invalidRows = preview.filter(p => p.errors.length > 0);
 
   const handleImport = () => {
-    const toImport = validRows.map(p => p.data as Omit<Asset, 'id' | 'reference' | 'status'>);
+    const toImport = validRows.map(p => p.data as (Omit<Asset, 'id' | 'status'> & { reference: string }));
     onImport(toImport);
     setImportCount(toImport.length);
     setStep('done');
