@@ -23,6 +23,7 @@ interface PreviewRow {
 }
 
 const CSV_HEADERS = [
+  'Département / Asset Location',
   'Subject',
   'Asset Description',
   'Status',
@@ -127,6 +128,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
         const description = get(row, 'Asset Description');
 
         const referenceFromCSV = get(row, 'Asset Reference');
+        const deptLocation = get(row, 'Département / Asset Location');
         if (!subject) errors.push('Subject manquant');
         if (!referenceFromCSV) errors.push('Référence asset manquante');
         if (!description) errors.push('Description manquante');
@@ -148,7 +150,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
           category,
           property,
           reference: referenceFromCSV,
-          location: get(row, 'Asset Location'),
+          location: deptLocation || get(row, 'Asset Location'),
           responsible,
           owner,
           assignedTo: get(row, 'Assigned To'),
@@ -299,6 +301,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
                 <thead>
                   <tr style={{ backgroundColor: '#003366', color: 'white' }}>
                     <th className="p-2 text-left">Référence Asset</th>
+                    <th className="p-2 text-left">Département</th>
                     <th className="p-2 text-left">Subject</th>
                     <th className="p-2 text-left">Catégorie</th>
                     <th className="p-2 text-left">Responsable</th>
@@ -309,6 +312,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
                   {validRows.map((row, i) => (
                     <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#F5F7FA' : 'white' }}>
                       <td className="p-2 font-medium" style={{ color: '#003366' }}>{(row.data as any).reference || '—'}</td>
+                      <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.location || '—'}</td>
                       <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.subject}</td>
                       <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.category}</td>
                       <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.responsible}</td>
