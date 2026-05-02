@@ -1,3 +1,4 @@
+import emailjs from '@emailjs/browser';
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -24,24 +25,20 @@ let activeRecoveryEmail = '';
 
 const sendRecoveryEmail = async (toEmail: string, code: string): Promise<boolean> => {
   try {
-    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        service_id: 'service_sofiatech',
-        template_id: 'template_280447t',
-        user_id: '4qL6XcLXHfczXu1xE',
-        accessToken: '4qL6XcLXHfczXu1xE',
-        template_params: {
-          to_email: toEmail,
-          name: toEmail,
-          email: toEmail,
-          recovery_code: code,
-        }
-      })
-    });
-    return response.ok;
-  } catch {
+    await emailjs.send(
+      'service_sofiatech',
+      'template_280447t',
+      {
+        to_email: toEmail,
+        name: toEmail,
+        email: toEmail,
+        recovery_code: code,
+      },
+      { publicKey: '4qL6XcLXHfczXu1xE' }
+    );
+    return true;
+  } catch (error) {
+    console.error('EmailJS error:', error);
     return false;
   }
 };
