@@ -66,6 +66,13 @@ export default function App() {
     console.log(`Demande de récupération pour: ${email}`);
   };
 
+  const handleResetPassword = useCallback((email: string, newPassword: string) => {
+    const updatedUsers = users.map(u =>
+      u.email === email ? { ...u, password: newPassword } : u
+    );
+    saveUsers(updatedUsers);
+  }, [users, saveUsers]);
+
   // ── Référence ───────────────────────────────────────────────────────────
   const findNextAvailableNumber = useCallback((deptCode: string, categoryCode: string): number => {
     const prefix = `${deptCode}-${categoryCode}-`;
@@ -217,7 +224,7 @@ export default function App() {
 
   // ── Render ──────────────────────────────────────────────────────────────
   if (!isAuthenticated) {
-    return <LoginPage users={users} onLogin={handleLogin} onForgotPassword={handleForgotPassword} />;
+    return <LoginPage users={users} onLogin={handleLogin} onForgotPassword={handleForgotPassword} onResetPassword={handleResetPassword} />;
   }
 
   if (isLoading) {
