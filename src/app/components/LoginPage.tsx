@@ -28,8 +28,8 @@ const sendRecoveryEmail = async (toEmail: string, code: string): Promise<boolean
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        service_id: 'service_hk8ufuc',
-        template_id: 'template_12u8i4g',
+        service_id: 'service_sofiatech',
+        template_id: 'template_5s8qnah',
         user_id: '4qL6XcLXHfczXu1xE',
         template_params: {
           to_email: toEmail,
