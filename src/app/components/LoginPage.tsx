@@ -18,7 +18,7 @@ interface LoginPageProps {
   onForgotPassword: (email: string) => void;
 }
 
-const ADMIN_EMAIL = 'nour.dhaouadi17@gmail.com';
+const ADMIN_EMAIL = 'sahar.beji@sofia-technologies.com';
 const RECOVERY_CODES: Record<string, string> = {};
 
 export function LoginPage({ users, onLogin, onForgotPassword }: LoginPageProps) {
