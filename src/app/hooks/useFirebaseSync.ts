@@ -51,6 +51,13 @@ const DEFAULT_USERS: UserAccount[] = [
     createdAt: new Date().toISOString(),
   },
   {
+    id: 'admin-2',
+    email: 'sahar.beji@sofia-technologies.com',
+    password: 'Sahar2026',
+    role: 'admin',
+    createdAt: new Date().toISOString(),
+  },
+  {
     id: 'user-1',
     email: 'darinerezgui3@gmail.com',
     password: 'Darine',

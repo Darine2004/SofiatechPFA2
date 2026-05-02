@@ -14,7 +14,7 @@ import { useFirebaseSync } from './hooks/useFirebaseSync';
 import { Plus, LogOut, Wifi, WifiOff, Loader2, Shield } from 'lucide-react';
 import logoImage from '../imports/image.png';
 
-const ADMIN_EMAIL = 'nour.dhaouadi17@gmail.com';
+const ADMIN_EMAILS = ['nour.dhaouadi17@gmail.com', 'sahar.beji@sofia-technologies.com'];
 
 interface Department {
   id: string;
@@ -230,7 +230,7 @@ export default function App() {
     );
   }
 
-  const isAdmin = currentUser === ADMIN_EMAIL;
+  const isAdmin = ADMIN_EMAILS.includes(currentUser) || currentUserRole === 'admin';
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F7FA' }}>

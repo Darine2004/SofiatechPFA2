@@ -17,7 +17,7 @@ interface AdminPageProps {
   onSaveUsers: (users: UserAccount[]) => void;
 }
 
-const ADMIN_EMAIL = 'nour.dhaouadi17@gmail.com';
+const ADMIN_EMAIL = 'darineetnour@gmail.com';
 
 export function AdminPage({ users, onSaveUsers }: AdminPageProps) {
   const [isAdding, setIsAdding] = useState(false);
@@ -31,7 +31,11 @@ export function AdminPage({ users, onSaveUsers }: AdminPageProps) {
     e.preventDefault();
     setError('');
     if (!newEmail || !newPassword) { setError('Remplissez tous les champs'); return; }
-    if (!newEmail.includes('@')) { setError('Email invalide'); return; }
+    const emailRegex = /^[a-zA-Z]+\.[a-zA-Z]+@sofia-technologies\.com$/;
+    if (!emailRegex.test(newEmail)) { 
+      setError('Email invalide. Format requis : prenom.nom@sofia-technologies.com'); 
+      return; 
+    }
     if (newPassword.length < 6) { setError('Mot de passe trop court (min 6 caractères)'); return; }
     if (users.find(u => u.email === newEmail)) { setError('Cet email existe déjà'); return; }
 
@@ -93,7 +97,7 @@ export function AdminPage({ users, onSaveUsers }: AdminPageProps) {
                   type="email"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="exemple@email.com"
+                  placeholder="prenom.nom@sofia-technologies.com"
                 />
               </div>
               <div>
