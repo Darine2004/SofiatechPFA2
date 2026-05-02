@@ -31,8 +31,9 @@ const sendRecoveryEmail = async (toEmail: string, code: string): Promise<boolean
       'template_280447t',
       {
         to_email: toEmail,
+        name: toEmail,
+        email: toEmail,
         recovery_code: code,
-        name: 'Utilisateur Sofiatech',
       },
       '4qL6XcLXHfczXu1xE'
     );
