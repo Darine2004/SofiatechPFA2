@@ -41,12 +41,13 @@ export default function App() {
   const handleLogin = (email: string, password: string) => {
     const user = users.find(u => u.email === email && u.password === password);
     if (user) {
+      const role = user.role || 'user';
       setIsAuthenticated(true);
       setCurrentUser(email);
-      setCurrentUserRole(user.role);
+      setCurrentUserRole(role);
       localStorage.setItem('sofiatech-auth', 'true');
       localStorage.setItem('sofiatech-user', email);
-      localStorage.setItem('sofiatech-role', user.role);
+      localStorage.setItem('sofiatech-role', role);
     } else {
       alert('Email ou mot de passe incorrect');
     }
@@ -230,7 +231,8 @@ export default function App() {
     );
   }
 
-  const isAdmin = ADMIN_EMAILS.includes(currentUser) || currentUserRole === 'admin';
+  const firebaseUser = users.find(u => u.email === currentUser);
+  const isAdmin = firebaseUser?.role === 'admin' || ADMIN_EMAILS.includes(currentUser);
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F7FA' }}>
