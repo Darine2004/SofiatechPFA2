@@ -24,18 +24,17 @@ let activeRecoveryEmail = '';
 
 const sendRecoveryEmail = async (toEmail: string, code: string): Promise<boolean> => {
   try {
-    // EmailJS - service gratuit d'envoi d'email
     const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        service_id: 'service_sofiatech',
-        template_id: 'template_recovery',
-        user_id: 'YOUR_EMAILJS_PUBLIC_KEY',
+        service_id: 'service_hk8ufuc',
+        template_id: 'template_12u8i4g',
+        user_id: '4qL6XcLXHfczXu1xE',
         template_params: {
           to_email: toEmail,
           recovery_code: code,
-          app_name: 'Sofiatech Asset Manager',
+          name: 'Utilisateur Sofiatech',
         }
       })
     });
@@ -87,8 +86,9 @@ export function LoginPage({ users, onLogin, onResetPassword }: LoginPageProps) {
     setIsSending(false);
 
     if (!sent) {
-      // Afficher le code à l'écran si EmailJS pas configuré
-      alert(`📧 Code de récupération (mode démo) :\n\n${code}\n\nConfigurez EmailJS pour l'envoi réel.`);
+      setError("Erreur lors de l'envoi de l'email. Vérifiez votre connexion.");
+      setMode('forgot');
+      return;
     }
 
     setMode('verify');
