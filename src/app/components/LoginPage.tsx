@@ -24,21 +24,19 @@ let activeRecoveryEmail = '';
 
 const sendRecoveryEmail = async (toEmail: string, code: string): Promise<boolean> => {
   try {
-    const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        service_id: 'service_sofiatech',
-        template_id: 'template_280447t',
-        user_id: '4qL6XcLXHfczXu1xE',
-        template_params: {
-          to_email: toEmail,
-          recovery_code: code,
-          name: 'Utilisateur Sofiatech',
-        }
-      })
-    });
-    return response.ok;
+    const emailjs = (window as any).emailjs;
+    if (!emailjs) return false;
+    await emailjs.send(
+      'service_sofiatech',
+      'template_280447t',
+      {
+        to_email: toEmail,
+        recovery_code: code,
+        name: 'Utilisateur Sofiatech',
+      },
+      '4qL6XcLXHfczXu1xE'
+    );
+    return true;
   } catch {
     return false;
   }
