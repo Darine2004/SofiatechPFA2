@@ -179,6 +179,10 @@ export default function App() {
     saveAssets(assets.filter(a => a.id !== id));
   }, [assets, saveAssets]);
 
+  const handleDeleteAllAssets = useCallback(() => {
+    saveAssets([]);
+  }, [saveAssets]);
+
   const handleImportCSV = useCallback((assetsData: any[]) => {
     const newAssets: Asset[] = assetsData.map(assetData => ({
       ...assetData, id: crypto.randomUUID(), status: 'Registered',
@@ -301,7 +305,7 @@ export default function App() {
             <div className="mb-4">
               <h2 style={{ color: '#003366' }}>Base de Données — Références Assets</h2>
             </div>
-            <AssetDatabase assets={assets} departments={departments} onExportDatabaseCSV={handleExportDatabaseCSV} onDeleteAsset={handleDeleteAssetFromDatabase} />
+            <AssetDatabase assets={assets} departments={departments} onExportDatabaseCSV={handleExportDatabaseCSV} onDeleteAsset={handleDeleteAssetFromDatabase} onDeleteAllAssets={handleDeleteAllAssets} />
           </TabsContent>
 
           <TabsContent value="assets" className="space-y-6">
