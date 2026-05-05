@@ -86,10 +86,12 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
   };
 
   // Résout le departmentId depuis le code de la référence (ex: "SW-ITE-0001" → code "SW")
+  // ⚠️ Retourne '' si le code est inconnu — ne jamais forcer departments[0] (évite le bug QMA par défaut)
   const resolveDeptFromRef = (reference: string): string => {
     const deptCode = reference?.split('-')[0] || '';
+    if (!deptCode) return '';
     const deptObj = departments.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
-    return deptObj?.id || departments[0]?.id || '';
+    return deptObj?.id || ''; // '' si inconnu → sera signalé en erreur
   };
 
   const handleFile = (file: File) => {
@@ -154,6 +156,10 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
 
         // ── FIX : résoudre le departmentId depuis la référence, PAS depuis departments[0] ──
         const resolvedDeptId = resolveDeptFromRef(referenceFromCSV);
+        const deptCodeFromRef = referenceFromCSV?.split('-')[0] || '';
+        if (referenceFromCSV && !resolvedDeptId) {
+          errors.push(`Département inconnu: "${deptCodeFromRef}" — vérifiez que ce code existe dans la liste des départements`);
+        }
 
         const data: Partial<Asset> & { reference: string } = {
           subject,
@@ -200,7 +206,8 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
       const deptObj = departments.find(d => d.code.toUpperCase() === deptCodeFromRef.toUpperCase());
       return {
         ...data,
-        departmentId: deptObj ? deptObj.id : (data.departmentId || departments[0]?.id || ''),
+        // ⚠️ Ne pas forcer departments[0] : si le code est inconnu, on garde '' (l'erreur aurait dû être catchée avant)
+        departmentId: deptObj ? deptObj.id : (data.departmentId || ''),
       };
     });
     onImport(toImport);
