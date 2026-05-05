@@ -175,6 +175,14 @@ export default function App() {
     if (confirm('Êtes-vous sûr de vouloir supprimer cet asset ?')) saveAssets(assets.filter(a => a.id !== id));
   }, [assets, saveAssets]);
 
+  const handleDeleteSelected = useCallback((ids: string[]) => {
+    saveAssets(assets.filter(a => !ids.includes(a.id)));
+  }, [assets, saveAssets]);
+
+  const handleDeleteAll = useCallback(() => {
+    saveAssets([]);
+  }, [saveAssets]);
+
   const handleDeleteAssetFromDatabase = useCallback((id: string) => {
     saveAssets(assets.filter(a => a.id !== id));
   }, [assets, saveAssets]);
