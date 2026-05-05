@@ -1,10 +1,12 @@
+// AssetList.tsx - Version complète modifiée
+
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Checkbox } from './ui/checkbox';
-import { Pencil, Trash2, Download, Search } from 'lucide-react';
+import { Pencil, Trash2, Download, Search, Trash2Icon } from 'lucide-react';
 import type { Asset } from './AssetForm';
 
 interface Department {
@@ -18,10 +20,20 @@ interface AssetListProps {
   departments: Department[];
   onEdit: (asset: Asset) => void;
   onDelete: (id: string) => void;
+  onDeleteSelected: (ids: string[]) => void;  // ← NOUVEAU : supprimer plusieurs
+  onDeleteAll: () => void;                     // ← NOUVEAU : supprimer tous
   onExportCSV: (departmentId?: string, selectedIds?: string[]) => void;
 }
 
-export function AssetList({ assets, departments, onEdit, onDelete, onExportCSV }: AssetListProps) {
+export function AssetList({ 
+  assets, 
+  departments, 
+  onEdit, 
+  onDelete, 
+  onDeleteSelected, 
+  onDeleteAll, 
+  onExportCSV 
+}: AssetListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDept, setFilterDept] = useState<string>('all');
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
@@ -38,13 +50,10 @@ export function AssetList({ assets, departments, onEdit, onDelete, onExportCSV }
       asset.description.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesDept = filterDept === 'all' || asset.departmentId === filterDept;
-
     return matchesSearch && matchesDept;
   }).sort((a, b) => {
-    // Sort by reference: split into parts [deptCode, categoryCode, number]
     const partsA = a.reference.split('-');
     const partsB = b.reference.split('-');
-    // Compare dept code first, then category, then numeric sequence
     const deptCmp = (partsA[0] || '').localeCompare(partsB[0] || '');
     if (deptCmp !== 0) return deptCmp;
     const catCmp = (partsA[1] || '').localeCompare(partsB[1] || '');
@@ -70,6 +79,17 @@ export function AssetList({ assets, departments, onEdit, onDelete, onExportCSV }
     }
   };
 
+  // ← NOUVEAU : supprimer les éléments sélectionnés
+  const handleDeleteSelected = () => {
+    const selectedCount = selectedAssets.size;
+    if (selectedCount === 0) return;
+    
+    if (confirm(`⚠️ Supprimer ${selectedCount} asset(s) sélectionné(s) ?\n\nCette action est irréversible.`)) {
+      onDeleteSelected(Array.from(selectedAssets));
+      setSelectedAssets(new Set()); // Vider la sélection
+    }
+  };
+
   const handleExport = () => {
     if (selectedAssets.size > 0) {
       onExportCSV(filterDept === 'all' ? undefined : filterDept, Array.from(selectedAssets));
@@ -89,8 +109,8 @@ export function AssetList({ assets, departments, onEdit, onDelete, onExportCSV }
   return (
     <div className="space-y-6">
       <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center gap-4">
-          <div className="flex-1 relative">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 relative min-w-[200px]">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5" style={{ color: '#4A90E2' }} />
             <Input
               placeholder="Rechercher par référence, sujet ou description..."
@@ -112,6 +132,37 @@ export function AssetList({ assets, departments, onEdit, onDelete, onExportCSV }
               ))}
             </SelectContent>
           </Select>
+
+          {/* ← BOUTON SUPPRIMER LES SÉLECTIONNÉS */}
+          {selectedAssets.size > 0 && (
+            <Button
+              onClick={handleDeleteSelected}
+              variant="outline"
+              style={{ borderColor: '#E74C3C', color: '#E74C3C' }}
+              className="hover:bg-[#E74C3C] hover:text-white"
+            >
+              <Trash2Icon className="w-4 h-4 mr-2" />
+              Supprimer ({selectedAssets.size})
+            </Button>
+          )}
+
+          {/* ← BOUTON SUPPRIMER TOUS */}
+          {filteredAssets.length > 0 && (
+            <Button
+              onClick={() => {
+                if (confirm(`⚠️ Supprimer TOUS les ${filteredAssets.length} asset(s) ?\n\nCette action est irréversible.`)) {
+                  onDeleteAll();
+                }
+              }}
+              variant="outline"
+              style={{ borderColor: '#E74C3C', color: '#E74C3C' }}
+              className="hover:bg-[#E74C3C] hover:text-white"
+            >
+              <Trash2Icon className="w-4 h-4 mr-2" />
+              Supprimer tous
+            </Button>
+          )}
+
           <Button onClick={handleExport} style={{ backgroundColor: '#27AE60' }} className="shadow-md">
             <Download className="w-4 h-4 mr-2" />
             {selectedAssets.size > 0 ? `Export (${selectedAssets.size})` : 'Export Tous'}

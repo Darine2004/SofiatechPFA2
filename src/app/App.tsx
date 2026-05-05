@@ -180,8 +180,14 @@ export default function App() {
   }, [assets, saveAssets]);
 
   const handleDeleteAllAssets = useCallback(() => {
-    saveAssets([]);
-  }, [saveAssets]);
+    if (confirm(`⚠️ Êtes-vous sûr de vouloir supprimer TOUS les ${assets.length} asset(s) ?\n\nCette action est irréversible.`)) {
+      saveAssets([]);
+    }
+  }, [assets, saveAssets]);
+
+  const handleDeleteSelectedAssets = useCallback((ids: string[]) => {
+    saveAssets(assets.filter(a => !ids.includes(a.id)));
+  }, [assets, saveAssets]);
 
   const handleImportCSV = useCallback((assetsData: any[]) => {
     const newAssets: Asset[] = assetsData.map(assetData => ({
@@ -305,7 +311,14 @@ export default function App() {
             <div className="mb-4">
               <h2 style={{ color: '#003366' }}>Base de Données — Références Assets</h2>
             </div>
-            <AssetDatabase assets={assets} departments={departments} onExportDatabaseCSV={handleExportDatabaseCSV} onDeleteAsset={handleDeleteAssetFromDatabase} onDeleteAllAssets={handleDeleteAllAssets} />
+            <AssetDatabase 
+              assets={assets} 
+              departments={departments} 
+              onExportDatabaseCSV={handleExportDatabaseCSV} 
+              onDeleteAsset={handleDeleteAssetFromDatabase}
+              onDeleteSelectedAssets={handleDeleteSelectedAssets}
+              onDeleteAllAssets={handleDeleteAllAssets} 
+            />
           </TabsContent>
 
           <TabsContent value="assets" className="space-y-6">
@@ -329,7 +342,15 @@ export default function App() {
             {isAddingAsset && <AssetForm departments={departments} people={people} onSubmit={handleAddAsset} onCancel={() => setIsAddingAsset(false)} />}
             {editingAsset && <AssetForm departments={departments} people={people} asset={editingAsset} onSubmit={handleEditAsset} onCancel={() => setEditingAsset(null)} />}
             {!isAddingAsset && !editingAsset && !isImportingCSV && (
-              <AssetList assets={assets} departments={departments} onEdit={setEditingAsset} onDelete={handleDeleteAsset} onExportCSV={handleExportCSV} />
+              <AssetList 
+                assets={assets} 
+                departments={departments} 
+                onEdit={setEditingAsset} 
+                onDelete={handleDeleteAsset}
+                onDeleteSelected={handleDeleteSelectedAssets}
+                onDeleteAll={handleDeleteAllAssets}
+                onExportCSV={handleExportCSV} 
+              />
             )}
           </TabsContent>
 
