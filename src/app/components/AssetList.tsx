@@ -40,6 +40,16 @@ export function AssetList({ assets, departments, onEdit, onDelete, onExportCSV }
     const matchesDept = filterDept === 'all' || asset.departmentId === filterDept;
 
     return matchesSearch && matchesDept;
+  }).sort((a, b) => {
+    // Sort by reference: split into parts [deptCode, categoryCode, number]
+    const partsA = a.reference.split('-');
+    const partsB = b.reference.split('-');
+    // Compare dept code first, then category, then numeric sequence
+    const deptCmp = (partsA[0] || '').localeCompare(partsB[0] || '');
+    if (deptCmp !== 0) return deptCmp;
+    const catCmp = (partsA[1] || '').localeCompare(partsB[1] || '');
+    if (catCmp !== 0) return catCmp;
+    return (parseInt(partsA[2], 10) || 0) - (parseInt(partsB[2], 10) || 0);
   });
 
   const toggleAssetSelection = (assetId: string) => {

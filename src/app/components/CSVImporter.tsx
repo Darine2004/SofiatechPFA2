@@ -182,7 +182,16 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
   const invalidRows = preview.filter(p => p.errors.length > 0);
 
   const handleImport = () => {
-    const toImport = validRows.map(p => p.data as (Omit<Asset, 'id' | 'status'> & { reference: string }));
+    const toImport = validRows.map(p => {
+      const data = p.data as (Omit<Asset, 'id' | 'status'> & { reference: string });
+      // Resolve departmentId from the reference prefix (e.g. "RD-ITE-0001" → code "RD")
+      const deptCodeFromRef = data.reference?.split('-')[0] || '';
+      const deptObj = departments.find(d => d.code === deptCodeFromRef);
+      return {
+        ...data,
+        departmentId: deptObj ? deptObj.id : (data.departmentId || departments[0]?.id || ''),
+      };
+    });
     onImport(toImport);
     setImportCount(toImport.length);
     setStep('done');
@@ -301,7 +310,8 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
                 <thead>
                   <tr style={{ backgroundColor: '#003366', color: 'white' }}>
                     <th className="p-2 text-left">Référence Asset</th>
-                    <th className="p-2 text-left">Département</th>
+                    <th className="p-2 text-left">Département (code)</th>
+                    <th className="p-2 text-left">Département (nom)</th>
                     <th className="p-2 text-left">Subject</th>
                     <th className="p-2 text-left">Catégorie</th>
                     <th className="p-2 text-left">Responsable</th>
@@ -309,16 +319,25 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
                   </tr>
                 </thead>
                 <tbody>
-                  {validRows.map((row, i) => (
-                    <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#F5F7FA' : 'white' }}>
-                      <td className="p-2 font-medium" style={{ color: '#003366' }}>{(row.data as any).reference || '—'}</td>
-                      <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.location || '—'}</td>
-                      <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.subject}</td>
-                      <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.category}</td>
-                      <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.responsible}</td>
-                      <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.priority}</td>
-                    </tr>
-                  ))}
+                  {validRows.map((row, i) => {
+                    const ref = (row.data as any).reference || '';
+                    const deptCodeFromRef = ref.split('-')[0] || '';
+                    const deptObj = departments.find(d => d.code === deptCodeFromRef);
+                    return (
+                      <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#F5F7FA' : 'white' }}>
+                        <td className="p-2 font-medium" style={{ color: '#003366' }}>{ref || '—'}</td>
+                        <td className="p-2 font-medium" style={{ color: deptObj ? '#003366' : '#E74C3C' }}>
+                          {deptCodeFromRef || '—'}
+                          {!deptObj && deptCodeFromRef && <span className="text-xs ml-1" style={{ color: '#E74C3C' }}>⚠ inconnu</span>}
+                        </td>
+                        <td className="p-2" style={{ color: '#2C3E50' }}>{deptObj ? deptObj.name : <span style={{ color: '#717182' }}>—</span>}</td>
+                        <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.subject}</td>
+                        <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.category}</td>
+                        <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.responsible}</td>
+                        <td className="p-2" style={{ color: '#2C3E50' }}>{row.data.priority}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

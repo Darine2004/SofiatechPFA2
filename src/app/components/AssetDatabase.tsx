@@ -53,6 +53,14 @@ export function AssetDatabase({ assets, departments, onExportDatabaseCSV, onDele
       asset.subject.toLowerCase().includes(searchLower) ||
       getDeptCode(asset.departmentId).toLowerCase().includes(searchLower)
     );
+  }).sort((a, b) => {
+    const partsA = a.reference.split('-');
+    const partsB = b.reference.split('-');
+    const deptCmp = (partsA[0] || '').localeCompare(partsB[0] || '');
+    if (deptCmp !== 0) return deptCmp;
+    const catCmp = (partsA[1] || '').localeCompare(partsB[1] || '');
+    if (catCmp !== 0) return catCmp;
+    return (parseInt(partsA[2], 10) || 0) - (parseInt(partsB[2], 10) || 0);
   });
 
   const handleDelete = (assetId: string, reference: string) => {
