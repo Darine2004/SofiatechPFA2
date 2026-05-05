@@ -85,6 +85,13 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
     return rows;
   };
 
+  // Résout le departmentId depuis le code de la référence (ex: "SW-ITE-0001" → code "SW")
+  const resolveDeptFromRef = (reference: string): string => {
+    const deptCode = reference?.split('-')[0] || '';
+    const deptObj = departments.find(d => d.code.toUpperCase() === deptCode.toUpperCase());
+    return deptObj?.id || departments[0]?.id || '';
+  };
+
   const handleFile = (file: File) => {
     setFileName(file.name);
     const reader = new FileReader();
@@ -129,6 +136,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
 
         const referenceFromCSV = get(row, 'Asset Reference');
         const deptLocation = get(row, 'Département / Asset Location');
+
         if (!subject) errors.push('Subject manquant');
         if (!referenceFromCSV) errors.push('Référence asset manquante');
         if (!description) errors.push('Description manquante');
@@ -143,6 +151,9 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
         if (!acquisitionDate) errors.push('Date acquisition manquante');
         if (priority && !VALID_PRIORITIES.includes(priority))
           errors.push(`Priorité invalide: "${priority}"`);
+
+        // ── FIX : résoudre le departmentId depuis la référence, PAS depuis departments[0] ──
+        const resolvedDeptId = resolveDeptFromRef(referenceFromCSV);
 
         const data: Partial<Asset> & { reference: string } = {
           subject,
@@ -160,7 +171,7 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
           calibrationStatus: get(row, 'Calibration Status'),
           calibrationDeadline: get(row, 'Calibration Validity Deadline'),
           priority: priority || 'D - Restricted',
-          departmentId: departments[0]?.id || '',
+          departmentId: resolvedDeptId, // ← Correction ici
         };
 
         return { row: idx + (hasHeader ? 2 : 1), data, errors };
@@ -184,9 +195,9 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
   const handleImport = () => {
     const toImport = validRows.map(p => {
       const data = p.data as (Omit<Asset, 'id' | 'status'> & { reference: string });
-      // Resolve departmentId from the reference prefix (e.g. "RD-ITE-0001" → code "RD")
+      // Double sécurité : re-résoudre depuis la référence au moment de l'import
       const deptCodeFromRef = data.reference?.split('-')[0] || '';
-      const deptObj = departments.find(d => d.code === deptCodeFromRef);
+      const deptObj = departments.find(d => d.code.toUpperCase() === deptCodeFromRef.toUpperCase());
       return {
         ...data,
         departmentId: deptObj ? deptObj.id : (data.departmentId || departments[0]?.id || ''),
@@ -322,7 +333,8 @@ export function CSVImporter({ departments, onImport, onClose }: CSVImporterProps
                   {validRows.map((row, i) => {
                     const ref = (row.data as any).reference || '';
                     const deptCodeFromRef = ref.split('-')[0] || '';
-                    const deptObj = departments.find(d => d.code === deptCodeFromRef);
+                    // ── FIX : recherche insensible à la casse ──
+                    const deptObj = departments.find(d => d.code.toUpperCase() === deptCodeFromRef.toUpperCase());
                     return (
                       <tr key={i} style={{ backgroundColor: i % 2 === 0 ? '#F5F7FA' : 'white' }}>
                         <td className="p-2 font-medium" style={{ color: '#003366' }}>{ref || '—'}</td>

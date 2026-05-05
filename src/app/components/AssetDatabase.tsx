@@ -16,14 +16,8 @@ interface AssetDatabaseProps {
   departments: Department[];
   onExportDatabaseCSV: () => void;
   onDeleteAsset: (id: string) => void;
+  onDeleteAllAssets: () => void; // ← nouveau prop
 }
-
-const DEPARTMENT_CODES = [
-  { code: 'RD', name: 'Research & Development' },
-  { code: 'AMQ', name: 'Quality (AMQ)' },
-  { code: 'HW', name: 'Hardware' },
-  { code: 'SW', name: 'Software' }
-];
 
 const CATEGORY_CODES = [
   { code: 'ITE', name: 'IT Equipment' },
@@ -33,7 +27,7 @@ const CATEGORY_CODES = [
   { code: 'COM', name: 'Communication Equipment' }
 ];
 
-export function AssetDatabase({ assets, departments, onExportDatabaseCSV, onDeleteAsset }: AssetDatabaseProps) {
+export function AssetDatabase({ assets, departments, onExportDatabaseCSV, onDeleteAsset, onDeleteAllAssets }: AssetDatabaseProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const getDeptCode = (deptId: string) => {
@@ -69,6 +63,13 @@ export function AssetDatabase({ assets, departments, onExportDatabaseCSV, onDele
     }
   };
 
+  const handleDeleteAll = () => {
+    if (assets.length === 0) return;
+    if (confirm(`⚠️ Êtes-vous sûr de vouloir supprimer TOUTES les ${assets.length} référence(s) ?\n\nCette action est irréversible.`)) {
+      onDeleteAllAssets();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-white p-4 rounded-lg shadow-sm border">
@@ -82,10 +83,22 @@ export function AssetDatabase({ assets, departments, onExportDatabaseCSV, onDele
               className="pl-10"
             />
           </div>
-          <Button onClick={onExportDatabaseCSV} style={{ backgroundColor: '#27AE60' }} className="shadow-md">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleDeleteAll}
+              disabled={assets.length === 0}
+              variant="outline"
+              style={{ borderColor: '#E74C3C', color: '#E74C3C' }}
+              className="hover:bg-[#E74C3C] hover:text-white shadow-md"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Supprimer tous
+            </Button>
+            <Button onClick={onExportDatabaseCSV} style={{ backgroundColor: '#27AE60' }} className="shadow-md">
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
         </div>
 
         <div className="p-3 rounded text-center mb-4" style={{ backgroundColor: '#FFF8DC', color: '#003366', border: '1px solid #F47B20' }}>
